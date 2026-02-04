@@ -1,0 +1,7 @@
+mcp
+python-dotenv
+PyYAML
+lxml
+paramiko
+uvicorn
+starlette

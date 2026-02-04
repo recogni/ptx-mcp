@@ -1,0 +1,14 @@
+# Tools allowed for this server. If a tool is in the list, it is registered.
+allowed_tools:
+  - run_cli
+  - get_facts
+  - get_configuration
+  - edit_configuration
+  - rollback_configuration
+  - add_software
+  - read_var_log_messages_window
+
+# Allowlist for run_cli: only SSH commands matching one of these regex patterns are run.
+# Built-in tools (get_facts, get_configuration, etc.) use SSH directly and are not restricted by this list.
+allowed_ssh_commands:
+  - "show .*"
