@@ -11,6 +11,7 @@ _registry = {
     "rollback_configuration": ("tools.rollback_configuration", "register"),
     "add_software": ("tools.add_software", "register"),
     "read_var_log_messages_window": ("tools.read_var_log_messages_window", "register"),
+    "list_chassis": ("tools.list_chassis", "register"),
 }
 
 

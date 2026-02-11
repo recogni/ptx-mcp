@@ -1,0 +1,14 @@
+# PTX Chassis Definitions
+# Copy to chassis.yml and fill in your values. Do not commit chassis.yml.
+#
+# Each key is a chassis_id that can be passed to any tool.
+# Connection fields: host (required), username, password, port, ssh_key, cli_invoke.
+
+chassis:
+  ch0:
+    host: <your-ptx-hostname-or-ip>
+    username: <your-username>
+    password: <your-password>
+    port: 22
+    # ssh_key: /path/to/your/ssh/private/key   # preferred over password
+    # cli_invoke: cli-quoted                    # for commands with pipes/special chars

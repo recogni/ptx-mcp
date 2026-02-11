@@ -1,5 +1,4 @@
 """Load tools.yml: enable/disable tools and allowed CLI command patterns."""
-import os
 import re
 from pathlib import Path
 from typing import List
@@ -13,16 +12,10 @@ _DEFAULT_CONFIG_PATH = _PROJECT_ROOT / "config" / "tools.yml"
 
 
 def _find_config() -> Path:
-    path = os.getenv("PTX_TOOLS_CONFIG")
-    if path:
-        p = Path(path).resolve()
-        if p.is_file():
-            return p
-        logger.warning("PTX_TOOLS_CONFIG file not found: %s", p)
     if _DEFAULT_CONFIG_PATH.is_file():
         return _DEFAULT_CONFIG_PATH
     raise FileNotFoundError(
-        f"Tools config not found. Set PTX_TOOLS_CONFIG or create config/tools.yml at {_DEFAULT_CONFIG_PATH}"
+        f"Tools config not found. Create config/tools.yml at {_DEFAULT_CONFIG_PATH}"
     )
 
 

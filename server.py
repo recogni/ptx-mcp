@@ -1,11 +1,7 @@
 import logging
 
-from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
-
-# Load environment variables before any tool imports (they use env for PTX_*)
-load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s]: %(message)s")

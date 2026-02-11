@@ -7,7 +7,7 @@ import re
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Tuple
+from typing import Any, Dict, Tuple
 
 import paramiko
 
@@ -45,10 +45,6 @@ def _format_tool_log(title: str, **fields: Any) -> str:
 def _log_tool_call(title: str, **fields: Any) -> None:
     """Log a formatted tool-call block at INFO level."""
     logger.info("%s", _format_tool_log(title, **fields))
-
-PTX_HOST = os.getenv("PTX_HOST")
-PTX_USER = os.getenv("PTX_USER", "")
-PTX_PASSWORD = os.getenv("PTX_PASSWORD", "")
 
 _MONTHS = {
     "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "May": 5, "Jun": 6,
@@ -155,32 +151,34 @@ def _escape_single_quoted(s: str) -> str:
     return s.replace("'", "'\"'\"'")
 
 
-def run_cli_command_on_ptx(command: str, timeout_sec: int = 90) -> Tuple[bool, str]:
+def run_cli_command_on_ptx(command: str, chassis: Dict[str, Any], timeout_sec: int = 90) -> Tuple[bool, str]:
     """Run a single CLI command on the PTX via SSH. Returns (success, output).
 
-    Commands are run as 'cli <command>' (e.g. cli show system software list). No -c, no quoting,
-    so the device receives cli + separate arguments. Use PTX_CLI_INVOKE for other styles.
+    Args:
+        command: CLI command to execute.
+        chassis: Connection dict with keys: host, username, password, port, ssh_key, cli_invoke.
+        timeout_sec: SSH command timeout in seconds.
     """
-    if not PTX_HOST:
-        raise ValueError("PTX_HOST environment variable is not set")
-    port = int(os.getenv("PTX_PORT", "22"))
-    # Default: "cli show system software list" (no -c) — matches Junos Evolved PTX.
-    # PTX_CLI_INVOKE=cli-quoted → "cli 'command'" for commands with pipes/special chars.
-    cli_invoke = (os.getenv("PTX_CLI_INVOKE") or "").strip().lower()
+    host = chassis["host"]
+    port = chassis.get("port", 22)
+    username = chassis.get("username", "")
+    password = chassis.get("password", "")
+    ssh_key = chassis.get("ssh_key")
+    cli_invoke = chassis.get("cli_invoke") or ""
     if cli_invoke == "cli-quoted":
         wrapped = "cli '" + _escape_single_quoted(command) + "'"
     else:
         wrapped = "cli " + command
         cli_invoke = "cli"
-    auth = "key" if os.getenv("PTX_SSH_KEY") and os.path.exists(os.getenv("PTX_SSH_KEY", "")) else "password"
+    auth = "key" if ssh_key and os.path.exists(ssh_key) else "password"
     _log_tool_call(
         "CLI SSH REQUEST",
         command=command,
         wrapped=wrapped,
         cli_invoke=cli_invoke,
-        host=PTX_HOST,
+        host=host,
         port=port,
-        user=PTX_USER or "(empty)",
+        user=username or "(empty)",
         auth=auth,
         timeout_sec=timeout_sec,
     )
@@ -188,11 +186,10 @@ def run_cli_command_on_ptx(command: str, timeout_sec: int = 90) -> Tuple[bool, s
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     start = time.monotonic()
     try:
-        ssh_key = os.getenv("PTX_SSH_KEY")
         if ssh_key and os.path.exists(ssh_key):
-            client.connect(PTX_HOST, port=port, username=PTX_USER, key_filename=ssh_key, timeout=min(30, timeout_sec))
+            client.connect(host, port=port, username=username, key_filename=ssh_key, timeout=min(30, timeout_sec))
         else:
-            client.connect(PTX_HOST, port=port, username=PTX_USER, password=PTX_PASSWORD, timeout=min(30, timeout_sec))
+            client.connect(host, port=port, username=username, password=password, timeout=min(30, timeout_sec))
         stdin, stdout, stderr = client.exec_command(wrapped, timeout=timeout_sec)
         out = stdout.read().decode("utf-8", errors="replace")
         err = stderr.read().decode("utf-8", errors="replace")
@@ -225,19 +222,27 @@ def run_cli_command_on_ptx(command: str, timeout_sec: int = 90) -> Tuple[bool, s
         client.close()
 
 
-def run_cli_stdin_on_ptx(command: str, stdin_content: str, timeout_sec: int = 120) -> Tuple[bool, str]:
-    """Run a CLI command on the PTX and feed stdin (e.g. 'cli' with multi-line input). Returns (success, output)."""
-    if not PTX_HOST:
-        raise ValueError("PTX_HOST environment variable is not set")
-    port = int(os.getenv("PTX_PORT", "22"))
+def run_cli_stdin_on_ptx(command: str, stdin_content: str, chassis: Dict[str, Any], timeout_sec: int = 120) -> Tuple[bool, str]:
+    """Run a CLI command on the PTX and feed stdin (e.g. 'cli' with multi-line input). Returns (success, output).
+
+    Args:
+        command: Shell command to execute (e.g. 'cli').
+        stdin_content: Content to feed on stdin.
+        chassis: Connection dict with keys: host, username, password, port, ssh_key.
+        timeout_sec: SSH command timeout in seconds.
+    """
+    host = chassis["host"]
+    port = chassis.get("port", 22)
+    username = chassis.get("username", "")
+    password = chassis.get("password", "")
+    ssh_key = chassis.get("ssh_key")
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
-        ssh_key = os.getenv("PTX_SSH_KEY")
         if ssh_key and os.path.exists(ssh_key):
-            client.connect(PTX_HOST, port=port, username=PTX_USER, key_filename=ssh_key, timeout=min(30, timeout_sec))
+            client.connect(host, port=port, username=username, key_filename=ssh_key, timeout=min(30, timeout_sec))
         else:
-            client.connect(PTX_HOST, port=port, username=PTX_USER, password=PTX_PASSWORD, timeout=min(30, timeout_sec))
+            client.connect(host, port=port, username=username, password=password, timeout=min(30, timeout_sec))
         stdin, stdout, stderr = client.exec_command(command, timeout=timeout_sec)
         stdin.write(stdin_content)
         stdin.channel.shutdown_write()
